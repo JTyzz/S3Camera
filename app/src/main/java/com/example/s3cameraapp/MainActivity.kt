@@ -6,21 +6,18 @@ import android.content.ContextWrapper
 import android.graphics.Bitmap
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
-import com.amazonaws.auth.AnonymousAWSCredentials
-import com.amazonaws.event.ProgressEvent
+import com.amazonaws.auth.AWSCredentialsProvider
+import com.amazonaws.auth.CognitoCachingCredentialsProvider
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility
-import com.amazonaws.services.cognitoidentity.AmazonCognitoIdentityClient
-import com.amazonaws.services.s3.AmazonS3
+import com.amazonaws.regions.Regions
 import com.amazonaws.services.s3.AmazonS3Client
-import com.example.s3cameraapp.BuildConfig.BUCKET_ARN
+import com.example.s3cameraapp.BuildConfig.POOL_ID
 import io.fotoapparat.Fotoapparat
 import io.fotoapparat.log.logcat
 import io.fotoapparat.log.loggers
@@ -28,8 +25,6 @@ import io.fotoapparat.parameter.ScaleType
 import io.fotoapparat.selector.back
 import io.fotoapparat.view.CameraView
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileOutputStream
@@ -92,12 +87,19 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    private fun uploadToS3() = runBlocking{
-        val client = AmazonS3Client(AnonymousAWSCredentials())
-        val storageDir: File? = getExternalFilesDir(Environment.DIRECTORY_PICTURES)
-        val s3 = TransferUtility.builder().context(applicationContext).s3Client(client).build()
-        val observer = s3.upload(BUCKET_ARN, viewModel.dateTitle, storageDir)
-        observer.setTransferListener(object: TransferListener{
+    private fun uploadToS3() = runBlocking {
+        val awsCredentialsProvider: AWSCredentialsProvider =
+            CognitoCachingCredentialsProvider(applicationContext, POOL_ID, Regions.US_EAST_2)
+        val client = AmazonS3Client(awsCredentialsProvider)
+        val s3 = TransferUtility
+            .builder()
+            .context(applicationContext)
+            .s3Client(client)
+            .build()
+        val observer = s3.upload(
+            getString(R.string.bucket_name), viewModel.dateTitle, viewModel.s3file
+        )
+        observer.setTransferListener(object : TransferListener {
             override fun onProgressChanged(id: Int, bytesCurrent: Long, bytesTotal: Long) {
             }
 
@@ -114,24 +116,26 @@ class MainActivity : AppCompatActivity() {
             }
         })
     }
-    private fun saveToInternalStorage(bitmapImage: Bitmap): String{
-        val storageDir: File? = ContextWrapper(applicationContext).getDir("imageDir", Context.MODE_PRIVATE)
-        val timeStamp: String = SimpleDateFormat.getDateInstance().format(Date())
-        val imageFile = File(storageDir, "JPEG_${timeStamp}_")
+
+    private fun saveToInternalStorage(bitmapImage: Bitmap): String {
+        val storageDir: File? =
+            ContextWrapper(applicationContext).getDir("imageDir", Context.MODE_PRIVATE)
+        val timeStamp: String = SimpleDateFormat("HHmmss").format(Date())
+        val imageFile = File(storageDir, "$timeStamp.jpg")
         var fos: FileOutputStream? = null
         try {
             fos = FileOutputStream(imageFile)
             bitmapImage.compress(Bitmap.CompressFormat.JPEG, 100, fos)
-        } catch (e: Exception){
+        } catch (e: Exception) {
             e.printStackTrace()
         } finally {
             try {
                 fos?.close()
-            } catch (e: Exception){
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
-        viewModel.setVMBitmap(bitmapImage, timeStamp)
+        viewModel.setVMBitmap(bitmapImage, timeStamp, imageFile)
         return storageDir?.absolutePath!!
     }
 }

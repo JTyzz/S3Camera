@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-android-extensions'
+apply plugin: 'com.amazonaws.appsync'
 
 android {
     compileSdkVersion 29
@@ -19,6 +20,7 @@ android {
         versionName "1.0"
 
         buildConfigField("String", "BUCKET_ARN", BUCKET_ARN)
+        buildConfigField("String", "POOL_ID", POOL_ID)
 
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -56,10 +58,10 @@ dependencies {
     implementation 'com.squareup.retrofit2:retrofit:2.6.2'
 
     //AWS
+//    implementation 'com.amazonaws:aws-android-sdk-mobile-client:2.16.0'
+//    implementation 'com.amazonaws:aws-android-sdk-appsync:2.6.+'
     implementation 'com.amazonaws:aws-android-sdk-core:2.16.0'
     implementation 'com.amazonaws:aws-android-sdk-s3:2.16.0'
-//    implementation platform("com.amazonaws:aws-java-sdk-bom:1.11.228")
-//    implementation "com.amazonaws:aws-java-sdk-s3"
 
 
 

@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">S3CameraApp</string>
+    <string name="bucket_name">s3camerappbucket</string>
+
 </resources>
